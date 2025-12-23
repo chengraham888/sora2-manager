@@ -46,6 +46,7 @@ SSE 流解析：完美支持 Server-Sent Events，实时追踪 初始化 -> 上�
 
 ## 克隆仓库
 ```git clone [https://github.com/your-username/sora2-manager.git](https://github.com/your-username/sora2-manager.git)```
+
 ```cd sora2-manager```
 
 ## 安装项目依赖
