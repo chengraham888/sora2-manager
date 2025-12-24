@@ -43,3 +43,13 @@ jobs:
           # 这里假设生成的是 exe 文件，路径通常是 dist/*.exe
           path: release/*.exe  
           if-no-files-found: error
+
+      # 6. (新增) 自动创建 Release 并上传 exe
+      # 注意：只有当你给代码打上标签(Tag)时才会触发，或者你可以配置为每次都触发(不推荐)
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/') # 只有打 tag (比如 v1.0.0) 时才运行
+        with:
+          files: release/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
