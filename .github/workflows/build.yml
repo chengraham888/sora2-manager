@@ -1,0 +1,43 @@
+name: Build Electron Windows Installer
+
+# 触发条件：当你推送到 main 分支，或者手动点击运行按钮时触发
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-on-windows:
+    runs-on: windows-latest # 使用 GitHub 提供的 Windows 环境
+
+    steps:
+      # 1. 拉取代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. 安装 Node.js 环境
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18 # 建议使用 18 或 20 (根据项目 package.json 要求)
+          cache: 'npm'
+
+      # 3. 安装依赖 (对应 npm install)
+      - name: Install Dependencies
+        run: npm install
+
+      # 4. 构建 Windows 安装包 (对应 npm run electron:build)
+      - name: Build Electron App
+        run: npm run electron:build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 某些构建工具需要这个权限
+
+      # 5. 上传构建产物 (把生成的 .exe 文件存下来)
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sora2-Manager-Windows
+          # 注意：electron-builder 默认输出在 dist 或 build 目录
+          # 这里假设生成的是 exe 文件，路径通常是 dist/*.exe
+          path: dist/*.exe 
+          if-no-files-found: error
