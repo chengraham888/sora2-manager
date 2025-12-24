@@ -41,7 +41,9 @@
       "electron/**/*"
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "forceCodeSigning": false  
+    }
     }
   }
 }
