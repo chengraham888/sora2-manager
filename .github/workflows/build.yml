@@ -31,7 +31,9 @@ jobs:
         run: npm run electron:build
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 某些构建工具需要这个权限
-          CSC_IDENTITY_AUTO_DISCOVERY: false # <--- 关键修改：强制跳过证书自动发现和签名          
+          CSC_IDENTITY_AUTO_DISCOVERY: false # <--- 关键修改：强制跳过证书自动发现和签名    
+
+
       # 5. 上传构建产物 (把生成的 .exe 文件存下来)
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -39,5 +41,5 @@ jobs:
           name: Sora2-Manager-Windows
           # 注意：electron-builder 默认输出在 dist 或 build 目录
           # 这里假设生成的是 exe 文件，路径通常是 dist/*.exe
-          path: dist/*.exe 
+          path: release/*.exe  
           if-no-files-found: error
