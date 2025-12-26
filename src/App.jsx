@@ -332,20 +332,6 @@ export default function App() {
                 addLog('系统: 保存设置失败。', 'error');
             }
         }
-    };
-                await window.electronAPI.saveSettings(toSave);
-                addLog('系统: 设置已保存到用户数据目录。', 'success');
-            } catch (e) {
-                addLog('系统: 保存设置失败。', 'error');
-            }
-        } else {
-            try {
-                localStorage.setItem('sora2-settings', JSON.stringify(toSave));
-                addLog('系统: 设置已保存到 localStorage。', 'success');
-            } catch (e) {
-                addLog('系统: 保存到 localStorage 失败。', 'error');
-            }
-        }
         settingsLoadedRef.current = true;
         setShowSettings(false);
     };
