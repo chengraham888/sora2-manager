@@ -640,7 +640,7 @@ export default function App() {
     const task = queue.find(t => t.id === taskId);
     const projectName = task?.projectName || 'unknown';
     // 清理项目名，移除或替换不安全的字符
-    const safeProjectName = projectName.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_');
+    const safeProjectName = projectName.replace(/[<>:"/\\|?*]/g, '_').replace(/(^\s+)|(\s+$)/g, '_');
     const filename = `${safeProjectName}_task_${taskId}.mp4`;
     if (window.electronAPI && typeof window.electronAPI.downloadVideo === 'function') {
         window.electronAPI.downloadVideo(url, filename);

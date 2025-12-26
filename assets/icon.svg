@@ -1,0 +1,30 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="#3B82F6" stroke="#1E40AF" stroke-width="16"/>
+
+  <!-- Film strip holes -->
+  <circle cx="96" cy="96" r="12" fill="#FFFFFF"/>
+  <circle cx="96" cy="160" r="12" fill="#FFFFFF"/>
+  <circle cx="96" cy="224" r="12" fill="#FFFFFF"/>
+  <circle cx="96" cy="288" r="12" fill="#FFFFFF"/>
+  <circle cx="96" cy="352" r="12" fill="#FFFFFF"/>
+  <circle cx="96" cy="416" r="12" fill="#FFFFFF"/>
+
+  <circle cx="416" cy="96" r="12" fill="#FFFFFF"/>
+  <circle cx="416" cy="160" r="12" fill="#FFFFFF"/>
+  <circle cx="416" cy="224" r="12" fill="#FFFFFF"/>
+  <circle cx="416" cy="288" r="12" fill="#FFFFFF"/>
+  <circle cx="416" cy="352" r="12" fill="#FFFFFF"/>
+  <circle cx="416" cy="416" r="12" fill="#FFFFFF"/>
+
+  <!-- Film strip lines -->
+  <rect x="120" y="84" width="272" height="4" fill="#FFFFFF"/>
+  <rect x="120" y="148" width="272" height="4" fill="#FFFFFF"/>
+  <rect x="120" y="212" width="272" height="4" fill="#FFFFFF"/>
+  <rect x="120" y="276" width="272" height="4" fill="#FFFFFF"/>
+  <rect x="120" y="340" width="272" height="4" fill="#FFFFFF"/>
+  <rect x="120" y="404" width="272" height="4" fill="#FFFFFF"/>
+
+  <!-- Play button -->
+  <polygon points="200,180 320,256 200,332" fill="#FFFFFF"/>
+</svg>
