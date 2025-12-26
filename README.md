@@ -43,7 +43,7 @@ SSE 流解析：完美支持 Server-Sent Events，实时追踪 初始化 -> 上�
 
 确保你的系统中已安装 Node.js (建议 v18+)。
 
-
+ 
 ## 克隆仓库
 ```git clone [https://github.com/your-username/sora2-manager.git](https://github.com/your-username/sora2-manager.git)```
 
@@ -68,6 +68,7 @@ SSE 流解析：完美支持 Server-Sent Events，实时追踪 初始化 -> 上�
 API Endpoint: 你的Sora2API地址（如 http://localhost:8000/v1/chat/completions）。
 API Key: 你的访问凭证。
 并发控制: 同时发射的请求数。
+
 提交间隔: 两次请求之间的冷却时间（非代理池建议设为6s+，若采用代理池可适当减少）。
 注意！需要在sora2api中启用缓存和开启无水印模式。
 
