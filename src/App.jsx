@@ -139,14 +139,33 @@ export default function App() {
     return () => clearTimeout(timer);
   }, []);
 
-    // 加载持久化设置与项目（仅使用 localStorage，避免覆盖）
+    // 加载持久化设置与项目（使用 Electron API 或 localStorage 作为后备）
     useEffect(() => {
-        const loadPersisted = () => {
+        const loadPersisted = async () => {
             let savedSettings = null;
             let savedProjects = null;
 
-            try { const s = localStorage.getItem('sora2-settings'); savedSettings = s ? JSON.parse(s) : null; } catch (e) { console.error('read localStorage settings failed', e); }
-            try { const p = localStorage.getItem('sora2-projects'); savedProjects = p ? JSON.parse(p) : null; } catch (e) { console.error('read localStorage projects failed', e); }
+            try {
+                if (window.electronAPI && typeof window.electronAPI.getSettings === 'function') {
+                    savedSettings = await window.electronAPI.getSettings();
+                } else {
+                    const s = localStorage.getItem('sora2-settings');
+                    savedSettings = s ? JSON.parse(s) : null;
+                }
+            } catch (e) {
+                console.error('read settings failed', e);
+            }
+
+            try {
+                if (window.electronAPI && typeof window.electronAPI.getProjects === 'function') {
+                    savedProjects = await window.electronAPI.getProjects();
+                } else {
+                    const p = localStorage.getItem('sora2-projects');
+                    savedProjects = p ? JSON.parse(p) : null;
+                }
+            } catch (e) {
+                console.error('read projects failed', e);
+            }
 
             if (savedSettings && typeof savedSettings === 'object') {
                 // 恢复 config，并且尝试恢复 UI 相关状态
@@ -182,21 +201,36 @@ export default function App() {
 
             // 恢复队列（如果存在）
             try {
-                const q = localStorage.getItem('sora2-queue');
-                const parsed = q ? JSON.parse(q) : null;
-                if (Array.isArray(parsed)) {
-                    // 只将运行中的任务标记为 PENDING，保留已完成和失败的任务
-                    const normalized = parsed.map(t => {
-                        if (['GENERATING','STARTING','PROCESSING','CACHING'].includes(t.status)) {
-                            return { ...t, status: 'PENDING', stage: '等待中', progress: 0 };
-                        }
-                        // 保留 COMPLETED, FAILED, PENDING 等状态
-                        return t;
-                    });
-                    setQueue(normalized);
+                if (window.electronAPI && typeof window.electronAPI.getQueue === 'function') {
+                    const parsed = await window.electronAPI.getQueue();
+                    if (Array.isArray(parsed)) {
+                        // 只将运行中的任务标记为 PENDING，保留已完成和失败的任务
+                        const normalized = parsed.map(t => {
+                            if (['GENERATING','STARTING','PROCESSING','CACHING'].includes(t.status)) {
+                                return { ...t, status: 'PENDING', stage: '等待中', progress: 0 };
+                            }
+                            // 保留 COMPLETED, FAILED, PENDING 等状态
+                            return t;
+                        });
+                        setQueue(normalized);
+                    }
+                } else {
+                    const q = localStorage.getItem('sora2-queue');
+                    const parsed = q ? JSON.parse(q) : null;
+                    if (Array.isArray(parsed)) {
+                        // 只将运行中的任务标记为 PENDING，保留已完成和失败的任务
+                        const normalized = parsed.map(t => {
+                            if (['GENERATING','STARTING','PROCESSING','CACHING'].includes(t.status)) {
+                                return { ...t, status: 'PENDING', stage: '等待中', progress: 0 };
+                            }
+                            // 保留 COMPLETED, FAILED, PENDING 等状态
+                            return t;
+                        });
+                        setQueue(normalized);
+                    }
                 }
             } catch (e) {
-                console.error('read localStorage queue failed', e);
+                console.error('read queue failed', e);
             }
 
             // 延迟标记为已加载，确保上面通过 setState 的更新先被 React 应用，
@@ -210,36 +244,53 @@ export default function App() {
         loadPersisted();
     }, []);
 
-    // 当项目或选中项目改变时持久化保存（仅 localStorage），但在初始加载完成之前不保存以免覆盖
+    // 当项目或选中项目改变时持久化保存（使用 Electron API 或 localStorage 作为后备），但在初始加载完成之前不保存以免覆盖
     useEffect(() => {
         if (!projectsLoadedRef.current) return;
         const payload = { projects, activeId: activeProjectId };
-        try {
-            localStorage.setItem('sora2-projects', JSON.stringify(payload));
-        } catch (e) {
-            addLog('系统: 保存到 localStorage 失败。', 'error');
-        }
+        const saveAsync = async () => {
+            try {
+                if (window.electronAPI && typeof window.electronAPI.saveProjects === 'function') {
+                    await window.electronAPI.saveProjects(payload);
+                } else {
+                    localStorage.setItem('sora2-projects', JSON.stringify(payload));
+                }
+            } catch (e) {
+                addLog('系统: 保存到存储失败。', 'error');
+            }
+        };
+        saveAsync();
     }, [projects, activeProjectId]);
 
     // 当生产队列改变时持久化（恢复后才保存），刷新时将未完成任务标记为 PENDING 以便恢复处理
     useEffect(() => {
         if (!queueLoadedRef.current) return;
-        try {
-            localStorage.setItem('sora2-queue', JSON.stringify(queue));
-        } catch (e) {
-            addLog('系统: 保存队列到 localStorage 失败。', 'error');
-        }
+        const saveAsync = async () => {
+            try {
+                if (window.electronAPI && typeof window.electronAPI.saveQueue === 'function') {
+                    await window.electronAPI.saveQueue(queue);
+                } else {
+                    localStorage.setItem('sora2-queue', JSON.stringify(queue));
+                }
+            } catch (e) {
+                addLog('系统: 保存队列到存储失败。', 'error');
+            }
+        };
+        saveAsync();
     }, [queue]);
 
     // 持久化 UI 设置（合并到 sora2-settings）
     useEffect(() => {
         if (!settingsLoadedRef.current) return;
-        const persistSettings = () => {
+        const persistSettings = async () => {
             try {
-                const raw = localStorage.getItem('sora2-settings');
-                const base = raw ? JSON.parse(raw) : {};
+                const base = window.electronAPI && typeof window.electronAPI.getSettings === 'function' ? await window.electronAPI.getSettings() : {};
                 const toSave = { ...base, ...config, orientation, duration, generationType, modelName };
-                localStorage.setItem('sora2-settings', JSON.stringify(toSave));
+                if (window.electronAPI && typeof window.electronAPI.saveSettings === 'function') {
+                    await window.electronAPI.saveSettings(toSave);
+                } else {
+                    localStorage.setItem('sora2-settings', JSON.stringify(toSave));
+                }
             } catch (e) {
                 console.error('persist settings failed', e);
             }
@@ -247,15 +298,19 @@ export default function App() {
         persistSettings();
     }, [config, orientation, duration, generationType, modelName]);
 
-    // helper: 立即保存 projects 到 localStorage（在关键操作后调用以保证数据不丢失）
-    const saveProjectsToLocalStorage = (projectsToSave, activeIdToSave) => {
+    // helper: 立即保存 projects 到存储（在关键操作后调用以保证数据不丢失）
+    const saveProjectsToLocalStorage = async (projectsToSave, activeIdToSave) => {
         try {
             const payload = { projects: projectsToSave, activeId: activeIdToSave };
-            localStorage.setItem('sora2-projects', JSON.stringify(payload));
-            addLog('系统: 项目已保存到 localStorage。', 'success');
+            if (window.electronAPI && typeof window.electronAPI.saveProjects === 'function') {
+                await window.electronAPI.saveProjects(payload);
+            } else {
+                localStorage.setItem('sora2-projects', JSON.stringify(payload));
+            }
+            addLog('系统: 项目已保存到存储。', 'success');
             projectsLoadedRef.current = true;
         } catch (e) {
-            addLog('系统: 保存到 localStorage 失败。', 'error');
+            addLog('系统: 保存到存储失败。', 'error');
         }
     };
 
@@ -263,6 +318,21 @@ export default function App() {
         const toSave = { ...config, orientation, duration, generationType, modelName };
         if (window.electronAPI && typeof window.electronAPI.saveSettings === 'function') {
             try {
+                await window.electronAPI.saveSettings(toSave);
+                addLog('系统: 设置已保存。', 'success');
+            } catch (e) {
+                addLog('系统: 保存设置失败。', 'error');
+            }
+        } else {
+            // 后备到 localStorage
+            try {
+                localStorage.setItem('sora2-settings', JSON.stringify(toSave));
+                addLog('系统: 设置已保存到 localStorage。', 'success');
+            } catch (e) {
+                addLog('系统: 保存设置失败。', 'error');
+            }
+        }
+    };
                 await window.electronAPI.saveSettings(toSave);
                 addLog('系统: 设置已保存到用户数据目录。', 'success');
             } catch (e) {

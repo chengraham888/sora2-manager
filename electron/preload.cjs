@@ -5,4 +5,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
   getProjects: () => ipcRenderer.invoke('get-projects'),
   saveProjects: (projects) => ipcRenderer.invoke('save-projects', projects),
+  getQueue: () => ipcRenderer.invoke('get-queue'),
+  saveQueue: (queue) => ipcRenderer.invoke('save-queue', queue),
 });

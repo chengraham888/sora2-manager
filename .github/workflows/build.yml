@@ -39,9 +39,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Sora2-Manager-Windows
-          # 注意：electron-builder 默认输出在 dist 或 build 目录
-          # 这里假设生成的是 exe 文件，路径通常是 dist/*.exe
-          path: release/*.exe  
+          # 注意：electron-builder 默认输出在 release 目录
+          path: release/*  
           if-no-files-found: error
 
       # 6. (新增) 自动创建 Release 并上传 exe
@@ -50,6 +49,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/') # 只有打 tag (比如 v1.0.0) 时才运行
         with:
-          files: release/*.exe
+          files: release/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

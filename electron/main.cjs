@@ -2,8 +2,9 @@ const { app, BrowserWindow, shell, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
-const SETTINGS_FILE = path.join(app.getPath ? app.getPath('userData') : '.', 'sora2-settings.json');
-const PROJECTS_FILE = path.join(app.getPath ? app.getPath('userData') : '.', 'sora2-projects.json');
+const SETTINGS_FILE = path.join(app.getAppPath(), 'sora2-settings.json');
+const PROJECTS_FILE = path.join(app.getAppPath(), 'sora2-projects.json');
+const QUEUE_FILE = path.join(app.getAppPath(), 'sora2-queue.json');
 
 let mainWindow;
 
@@ -86,6 +87,31 @@ const createWindow = () => {
       return { ok: true };
     } catch (e) {
       console.error('保存项目列表失败:', e);
+      return { ok: false, error: String(e) };
+    }
+  });
+
+  // IPC handlers for queue persistence
+  ipcMain.handle('get-queue', async () => {
+    try {
+      if (fs.existsSync(QUEUE_FILE)) {
+        const raw = fs.readFileSync(QUEUE_FILE, 'utf8');
+        return JSON.parse(raw || '[]');
+      }
+    } catch (e) {
+      console.error('读取队列失败:', e);
+    }
+    return [];
+  });
+
+  ipcMain.handle('save-queue', async (event, queue) => {
+    try {
+      const dir = path.dirname(QUEUE_FILE);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(QUEUE_FILE, JSON.stringify(queue || [], null, 2), 'utf8');
+      return { ok: true };
+    } catch (e) {
+      console.error('保存队列失败:', e);
       return { ok: false, error: String(e) };
     }
   });

@@ -41,9 +41,20 @@
       "electron/**/*"
     ],
     "win": {
-      "target": "nsis",
-      "forceCodeSigning": false  
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "ia32"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64", "ia32"]
+        }
+      ],
+      "forceCodeSigning": false
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}-${arch}.${ext}"
     }
-    
   }
 }
