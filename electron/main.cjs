@@ -2,9 +2,9 @@ const { app, BrowserWindow, shell, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
-const SETTINGS_FILE = path.join(app.getAppPath(), 'sora2-settings.json');
-const PROJECTS_FILE = path.join(app.getAppPath(), 'sora2-projects.json');
-const QUEUE_FILE = path.join(app.getAppPath(), 'sora2-queue.json');
+const SETTINGS_FILE = path.join(app.getPath('userData'), 'sora2-settings.json');
+const PROJECTS_FILE = path.join(app.getPath('userData'), 'sora2-projects.json');
+const QUEUE_FILE = path.join(app.getPath('userData'), 'sora2-queue.json');
 
 let mainWindow;
 
