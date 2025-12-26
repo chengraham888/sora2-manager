@@ -83,7 +83,7 @@ export default function App() {
     const [activeProject, setActiveProject] = useState(null);
   const [orientation, setOrientation] = useState('portrait');
   const [duration, setDuration] = useState('15s');
-  const [modelName, setModelName] = useState('sora-video-portrait-15s');
+  const [modelName, setModelName] = useState('sora2-portrait-15s');
     const [generationType, setGenerationType] = useState('text'); 
 
   // --- 批量生成状态 ---
@@ -371,7 +371,7 @@ export default function App() {
   }, [activeProjectId, projects]);
 
   useEffect(() => {
-    const newModelName = `sora-video-${orientation}-${duration}`;
+    const newModelName = `sora2-${orientation}-${duration}`;
     setModelName(newModelName);
   }, [orientation, duration]);
 
@@ -637,7 +637,11 @@ export default function App() {
   };
 
   const triggerDownload = (url, taskId) => {
-    const filename = `sora_task_${taskId}.mp4`;
+    const task = queue.find(t => t.id === taskId);
+    const projectName = task?.projectName || 'unknown';
+    // 清理项目名，移除或替换不安全的字符
+    const safeProjectName = projectName.replace(/[<>:"/\\|?*]/g, '_').replace(/\s+/g, '_');
+    const filename = `${safeProjectName}_task_${taskId}.mp4`;
     if (window.electronAPI && typeof window.electronAPI.downloadVideo === 'function') {
         window.electronAPI.downloadVideo(url, filename);
         addLog(`[任务 ${taskId}] 已触发原生下载。`, 'success');
@@ -763,7 +767,7 @@ export default function App() {
                                   if (foundUrl) {
                                       addLog(`[任务 ${taskId}] 生成完成，URL: ${foundUrl}`, 'success');
                                       updateTask(taskId, { status: 'COMPLETED', stage: '已完成', progress: 100, videoUrl: foundUrl });
-                                      triggerDownload(foundUrl, taskId);
+                                      triggerDownload(foundUrl, taskId);  //555
                                       taskCompleted = true;
                                   }
                               }
@@ -788,7 +792,7 @@ export default function App() {
       <header className="h-16 border-b border-gray-200 bg-white flex items-center justify-between px-6 z-10 shrink-0 shadow-sm">
           <div className="flex items-center gap-6">
               <h1 className="text-gray-900 font-bold text-lg tracking-wide flex items-center gap-2">
-                <div className="w-3 h-3 bg-blue-600 rounded-full"></div> Sora 视频生成
+                <div className="w-3 h-3 bg-blue-600 rounded-full"></div> Sora 视频生成工具（测试版）
               </h1>
           </div>
           <div className="flex items-center gap-3">
