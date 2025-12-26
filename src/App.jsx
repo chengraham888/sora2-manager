@@ -55,6 +55,9 @@ const IconScript = ({ size = 16, className = "" }) => (
 const IconCopy = ({ size = 16, className = "" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
 );
+const IconGrip = ({ size = 16, className = "" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+);
 
 
 export default function App() {
@@ -72,13 +75,16 @@ export default function App() {
     const [activeProjectId, setActiveProjectId] = useState(null);
   const [editingProjectId, setEditingProjectId] = useState(null);
   const [editName, setEditName] = useState('');
+    const [projectConfirmDeleteId, setProjectConfirmDeleteId] = useState(null);
+    const [draggedProjectId, setDraggedProjectId] = useState(null);
+    const [dragOverIndex, setDragOverIndex] = useState(null);
 
   // --- 当前项目输入状态 ---
     const [activeProject, setActiveProject] = useState(null);
   const [orientation, setOrientation] = useState('portrait');
   const [duration, setDuration] = useState('15s');
   const [modelName, setModelName] = useState('sora-video-portrait-15s');
-  const [generationType, setGenerationType] = useState('image'); 
+    const [generationType, setGenerationType] = useState('text'); 
 
   // --- 批量生成状态 ---
   const [showBatchModal, setShowBatchModal] = useState(false);
@@ -169,7 +175,7 @@ export default function App() {
                 }
             } else {
                 // 未找到已保存的数据 -> 使用内置示例并设为已加载状态
-                const sample = [{ id: 1, name: '示例项目 A', prompt: 'Product cinematic shot on a wooden table, 这是台词文案, 4k resolution.', image: null, imageName: null }];
+                const sample = [{ id: 1, name: '示例项目 A', prompt: 'Product cinematic shot on a wooden table, 这是台词文案, 4k resolution.', image: null, imageName: null, generationType: 'text' }];
                 setProjects(sample);
                 setActiveProjectId(sample[0].id);
             }
@@ -300,7 +306,12 @@ export default function App() {
 
   useEffect(() => {
       const proj = projects.find(p => p.id === activeProjectId);
-      if (proj && !composingRef.current) setActiveProject(proj);
+      if (proj && !composingRef.current) {
+          setActiveProject(proj);
+          // restore project-level generationType if present
+          const genType = proj.generationType || 'text';
+          setGenerationType(genType);
+      }
   }, [activeProjectId, projects]);
 
   useEffect(() => {
@@ -340,7 +351,7 @@ export default function App() {
 
   const handleCreateProject = () => {
       const newId = Date.now();
-      const newProject = { id: newId, name: `新项目 ${projects.length + 1}`, prompt: '', image: null, imageName: null };
+      const newProject = { id: newId, name: `新项目 ${projects.length + 1}`, prompt: '', image: null, imageName: null, generationType: generationType || 'text' };
       const newProjects = [...projects, newProject];
       setProjects(newProjects);
       setActiveProjectId(newId);
@@ -349,12 +360,29 @@ export default function App() {
 
   const handleDeleteProject = (e, id) => {
       e.stopPropagation();
-      if (projects.length <= 1) return; 
+      if (projects.length <= 1) return;
+      // 首次点击仅设置确认状态，再次点击才真正删除（2s 内有效）
+      if (projectConfirmDeleteId !== id) {
+          setProjectConfirmDeleteId(id);
+          setTimeout(() => setProjectConfirmDeleteId(prev => prev === id ? null : prev), 2000);
+          return;
+      }
+
+      // 确认删除
       const newProjects = projects.filter(p => p.id !== id);
-      const newActiveId = activeProjectId === id ? newProjects[0].id : activeProjectId;
+      const newActiveId = activeProjectId === id ? (newProjects[0] ? newProjects[0].id : null) : activeProjectId;
       setProjects(newProjects);
       setActiveProjectId(newActiveId);
       saveProjectsToLocalStorage(newProjects, newActiveId);
+      // 同步移除该项目对应的生产队列任务并持久化
+      setQueue(prev => {
+          const next = prev.filter(t => t.projectId !== id);
+          if (next.length !== prev.length) {
+              addLog(`系统: 已从队列中移除项目 ${id} 的 ${prev.length - next.length} 个任务。`, 'info');
+          }
+          return next;
+      });
+      setProjectConfirmDeleteId(null);
   };
 
   const startRenaming = (e, project) => {
@@ -382,6 +410,49 @@ export default function App() {
       saveProjectsToLocalStorage(next, activeProjectId);
   };
 
+  // 将生成模式作为项目级字段更新（同时更新当前 UI 状态）
+  const handleSetGenerationType = (type) => {
+      setGenerationType(type);
+      // 也更新 active project 的 generationType 字段
+      updateActiveProject('generationType', type);
+  };
+
+  // --- 拖拽处理器 ---
+  const handleDragStart = (e, projectId) => {
+      setDraggedProjectId(projectId);
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', projectId);
+  };
+
+  const handleDragOver = (e, index) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      setDragOverIndex(index);
+  };
+
+  const handleDragEnd = () => {
+      setDraggedProjectId(null);
+      setDragOverIndex(null);
+  };
+
+  const handleDrop = (e, dropIndex) => {
+      e.preventDefault();
+      const draggedId = draggedProjectId;
+      if (!draggedId || draggedId === projects[dropIndex]?.id) return;
+
+      const draggedIndex = projects.findIndex(p => p.id === draggedId);
+      if (draggedIndex === -1) return;
+
+      const newProjects = [...projects];
+      const [draggedProject] = newProjects.splice(draggedIndex, 1);
+      newProjects.splice(dropIndex, 0, draggedProject);
+
+      setProjects(newProjects);
+      saveProjectsToLocalStorage(newProjects, activeProjectId);
+      setDraggedProjectId(null);
+      setDragOverIndex(null);
+  };
+
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -400,10 +471,36 @@ export default function App() {
   const handleScriptChange = (index, value) => {
       const newScripts = [...batchScripts];
       newScripts[index] = value;
-      if (index === newScripts.length - 1 && value !== '') {
-          newScripts.push('');
-      }
       setBatchScripts(newScripts);
+  };
+
+  const handleScriptKeyDown = (index, e) => {
+      if (e.key === 'Enter') {
+          e.preventDefault();
+          setBatchScripts(prev => {
+              const next = [...prev];
+              // 如果在最后一行并且内容不空，追加一行；否则在当前行后插入一行
+              if (index === next.length - 1) {
+                  if (String(next[index] || '').trim() !== '') next.push('');
+              } else {
+                  next.splice(index + 1, 0, '');
+              }
+              return next;
+          });
+          // 等待 DOM 更新后把焦点移到最后一行（batchInputRef 指向最后一行）
+          setTimeout(() => batchInputRef.current?.focus(), 0);
+      }
+  };
+
+  const handleScriptBlur = (index) => {
+      // 失焦时如果是最后一行且不为空，则追加空行（方便继续输入）
+      if (index === batchScripts.length - 1 && String(batchScripts[index] || '').trim() !== '') {
+          setBatchScripts(prev => {
+              const next = [...prev];
+              if (next[next.length - 1] !== '') next.push('');
+              return next;
+          });
+      }
   };
 
   const handleOpenBatchModal = () => {
@@ -651,17 +748,43 @@ export default function App() {
                 <button onClick={handleCreateProject} className="text-gray-500 hover:text-blue-600 transition-colors bg-white border border-gray-200 p-1 rounded shadow-sm hover:shadow"><IconPlus size={16} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
-                {projects.map(proj => (
-                    <div key={proj.id} onClick={() => setActiveProjectId(proj.id)} className={`group flex items-center gap-3 px-3 py-3 rounded-lg cursor-pointer transition-colors border ${activeProjectId === proj.id ? 'bg-white border-gray-200 shadow-sm text-blue-600' : 'border-transparent text-gray-600 hover:bg-gray-100'}`}>
-                        <IconFolder size={16} className={activeProjectId === proj.id ? 'text-blue-400' : 'text-gray-600'} />
+                {projects.map((proj, index) => (
+                    <div
+                        key={proj.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, proj.id)}
+                        onDragOver={(e) => handleDragOver(e, index)}
+                        onDragEnd={handleDragEnd}
+                        onDrop={(e) => handleDrop(e, index)}
+                        className={`group flex items-center gap-3 px-3 py-3 rounded-lg transition-all border ${
+                            draggedProjectId === proj.id
+                                ? 'opacity-50 bg-gray-200'
+                                : dragOverIndex === index && draggedProjectId !== proj.id
+                                ? 'border-blue-300 bg-blue-50'
+                                : activeProjectId === proj.id
+                                ? 'bg-white border-gray-200 shadow-sm text-blue-600'
+                                : 'border-transparent text-gray-600 hover:bg-gray-100'
+                        } ${draggedProjectId ? 'cursor-move' : 'cursor-pointer'}`}
+                        onClick={() => !draggedProjectId && setActiveProjectId(proj.id)}
+                    >
+                        <div className="flex items-center gap-2">
+                            <IconGrip size={12} className="text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <IconFolder size={16} className={activeProjectId === proj.id ? 'text-blue-400' : 'text-gray-600'} />
+                        </div>
                         {editingProjectId === proj.id ? (
                             <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} onBlur={saveRename} onKeyDown={(e) => e.key === 'Enter' && saveRename()} onCompositionStart={() => composingRef.current = true} onCompositionEnd={() => composingRef.current = false} className="bg-white border border-blue-500 rounded px-1 py-0.5 text-xs text-gray-900 w-full outline-none" />
                         ) : (
                             <span className="text-sm font-medium truncate flex-1">{String(proj.name || '')}</span>
                         )}
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={(e) => startRenaming(e, proj)} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-white rounded"><IconEdit size={12} /></button>
-                            <button onClick={(e) => handleDeleteProject(e, proj.id)} className="p-1 text-gray-400 hover:text-red-500 hover:bg-white rounded"><IconTrash size={12} /></button>
+                            <button onClick={(e) => { e.stopPropagation(); if (!draggedProjectId) startRenaming(e, proj); }} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-white rounded"><IconEdit size={12} /></button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); if (!draggedProjectId) handleDeleteProject(e, proj.id); }}
+                                className={`px-2 py-1 rounded text-xs font-medium transition-colors ${projectConfirmDeleteId === proj.id ? 'text-orange-700 bg-orange-100 border border-orange-200' : 'text-gray-400 hover:text-red-500 hover:bg-white'}`}
+                                title={projectConfirmDeleteId === proj.id ? '再次点击以确认删除' : '删除项目'}
+                            >
+                                {projectConfirmDeleteId === proj.id ? '确认删除' : <IconTrash size={12} />}
+                            </button>
                         </div>
                     </div>
                 ))}
@@ -677,8 +800,8 @@ export default function App() {
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                         <div className="lg:col-span-8 flex flex-col gap-6">
                             <div className="flex items-center gap-2 mb-2">
-                                <button onClick={() => setGenerationType('image')} className={`px-3 py-1.5 text-sm font-medium rounded transition-colors flex items-center gap-2 border ${generationType === 'image' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}><IconImage size={16} /> 图生视频</button>
-                                <button onClick={() => setGenerationType('text')} className={`px-3 py-1.5 text-sm font-medium rounded transition-colors flex items-center gap-2 border ${generationType === 'text' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}><IconType size={16} /> 文生视频</button>
+                                <button onClick={() => handleSetGenerationType('image')} className={`px-3 py-1.5 text-sm font-medium rounded transition-colors flex items-center gap-2 border ${generationType === 'image' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}><IconImage size={16} /> 图生视频</button>
+                                <button onClick={() => handleSetGenerationType('text')} className={`px-3 py-1.5 text-sm font-medium rounded transition-colors flex items-center gap-2 border ${generationType === 'text' ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}><IconType size={16} /> 文生视频</button>
                             </div>
                             <div className="space-y-2">
                                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex justify-between">总提示词 (Master Prompt)<span className="text-xs text-blue-600 normal-case bg-blue-50 px-2 py-0.5 rounded">使用 "这是台词文案" 作为占位符</span></label>
@@ -815,7 +938,22 @@ export default function App() {
                       {batchMode === 'script' ? (
                           <div className="w-full space-y-3">
                               {batchScripts.map((script, idx) => (
-                                  <div key={idx} className="flex gap-3 items-center animate-in slide-in-from-left-2 duration-300"><span className="text-xs font-mono text-gray-400 w-6 text-right">{idx + 1}.</span><input ref={idx === batchScripts.length - 1 ? batchInputRef : null} type="text" value={String(script)} placeholder={idx === batchScripts.length - 1 ? "输入新台词文案..." : ""} onChange={(e) => handleScriptChange(idx, e.target.value)} onCompositionStart={() => composingRef.current = true} onCompositionEnd={(e) => { composingRef.current = false; handleScriptChange(idx, e.target.value); }} className="flex-1 bg-white border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-blue-500 transition-all shadow-sm" autoFocus={idx === batchScripts.length - 1} /></div>
+                                                                    <div key={idx} className="flex gap-3 items-center animate-in slide-in-from-left-2 duration-300">
+                                                                        <span className="text-xs font-mono text-gray-400 w-6 text-right">{idx + 1}.</span>
+                                                                        <input
+                                                                                ref={idx === batchScripts.length - 1 ? batchInputRef : null}
+                                                                                type="text"
+                                                                                value={String(script)}
+                                                                                placeholder={idx === batchScripts.length - 1 ? "输入新台词文案..." : ""}
+                                                                                onChange={(e) => handleScriptChange(idx, e.target.value)}
+                                                                                onKeyDown={(e) => handleScriptKeyDown(idx, e)}
+                                                                                onBlur={() => handleScriptBlur(idx)}
+                                                                                onCompositionStart={() => composingRef.current = true}
+                                                                                onCompositionEnd={(e) => { composingRef.current = false; handleScriptChange(idx, e.target.value); }}
+                                                                                className="flex-1 bg-white border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-blue-500 transition-all shadow-sm"
+                                                                                autoFocus={idx === batchScripts.length - 1}
+                                                                        />
+                                                                    </div>
                               ))}
                           </div>
                       ) : (
