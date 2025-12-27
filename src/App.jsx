@@ -802,7 +802,7 @@ export default function App() {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-64 border-r border-gray-200 bg-gray-50 flex flex-col shrink-0">
+        <aside className="flex-1 flex flex-col min-w-75  border-r border-gray-200 bg-gray-50 flex flex-col shrink-0">
             <div className="p-4 border-b border-gray-200 flex items-center justify-between">
                 <h2 className="text-gray-700 font-bold tracking-wide flex items-center gap-2 text-sm uppercase">项目列表</h2>
                 <button onClick={handleCreateProject} className="text-gray-500 hover:text-blue-600 transition-colors bg-white border border-gray-200 p-1 rounded shadow-sm hover:shadow"><IconPlus size={16} /></button>
@@ -851,7 +851,7 @@ export default function App() {
             </div>
         </aside>
 
-        <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative bg-white">
+        <main className="flex-4 flex flex-col min-w-0 overflow-hidden relative bg-white" >
             <div className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 max-w-7xl mx-auto w-full">
                 <section className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
                     <div className="flex items-center justify-between mb-6 border-b border-gray-100 pb-4">
@@ -890,7 +890,7 @@ export default function App() {
                                 </div>
                             )}
                         </div>
-                        <div className="lg:col-span-4 flex flex-col gap-6 bg-gray-50 p-6 rounded-xl border border-gray-100">
+                        <div className="lg:col-span-4 flex flex-col gap-6 bg-gray-50 p-6 rounded-xl border border-gray-100 h-full">
                             <div className="space-y-3">
                                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">画面方向</label>
                                 <div className="grid grid-cols-2 gap-2">
