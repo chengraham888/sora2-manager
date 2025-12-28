@@ -126,9 +126,11 @@ const createWindow = () => {
   });
 
   ipcMain.handle('select-download-folder', async () => {
+    console.log('select-download-folder called');
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory']
     });
+    console.log('dialog result:', result);
     if (!result.canceled) {
       return result.filePaths[0];
     }
@@ -142,6 +144,18 @@ const createWindow = () => {
     }
   });
 };
+// Single instance lock 只能打开 一个实例
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+  return;
+}
+
+app.on('second-instance', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+});
 
 app.whenReady().then(createWindow);
 app.on('window-all-closed', () => { 
