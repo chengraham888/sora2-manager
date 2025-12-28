@@ -66,7 +66,8 @@ export default function App() {
     baseUrl: 'http://localhost:8000/v1/chat/completions',
     apiKey: 'sora2api',
     maxConcurrent: 10, 
-    taskInterval: 1.0, 
+    taskInterval: 1.0,
+    downloadPath: '',
   });
 
     // --- 项目管理状态 ---
@@ -643,7 +644,7 @@ export default function App() {
     const safeProjectName = projectName.replace(/[<>:"/\\|?*]/g, '_').replace(/(^\s+)|(\s+$)/g, '_');
     const filename = `${safeProjectName}_task_${taskId}.mp4`;
     if (window.electronAPI && typeof window.electronAPI.downloadVideo === 'function') {
-        window.electronAPI.downloadVideo(url, filename);
+        window.electronAPI.downloadVideo(url, filename, config.downloadPath);
         addLog(`[任务 ${taskId}] 已触发原生下载。`, 'success');
     }
   };
@@ -1051,6 +1052,7 @@ export default function App() {
                   <div className="pt-4 border-t border-gray-100 space-y-4">
                       <div className="space-y-2"><label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-2"><IconLayers size={12}/> 并发控制</label><input type="number" min="1" value={config.maxConcurrent} onChange={(e) => setConfig({...config, maxConcurrent: Math.max(1, parseInt(e.target.value) || 1)})} className="w-full bg-white border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-blue-500" /></div>
                       <div className="space-y-2"><label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-2"><IconClock size={12}/> 提交间隔 (秒)</label><div className="flex items-center gap-3"><input type="number" min="0.1" step="0.1" value={config.taskInterval} onChange={(e) => setConfig({...config, taskInterval: Math.max(0.1, parseFloat(e.target.value) || 0.1)})} className="flex-1 bg-white border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-blue-500" /><span className="text-xs text-gray-400 font-medium">S</span></div></div>
+                      <div className="space-y-2"><label className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-2"><IconFolder size={12}/> 下载路径</label><div className="flex items-center gap-2"><input type="text" value={config.downloadPath || '默认下载文件夹'} readOnly className="flex-1 bg-gray-100 border border-gray-300 rounded-lg px-3 py-2.5 text-sm text-gray-700" /><button onClick={async () => { const path = await window.electronAPI.selectDownloadFolder(); if (path) setConfig({...config, downloadPath: path}); }} className="px-3 py-2 bg-gray-600 text-white text-sm rounded-lg hover:bg-gray-700">选择文件夹</button></div></div>
                   </div>
                   <div className="flex justify-end pt-2"><button onClick={handleSaveSettings} className="px-5 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 shadow-sm transition-all">保存并关闭</button></div>
               </div>

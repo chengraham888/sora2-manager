@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, ipcMain, globalShortcut } = require('electron');
+const { app, BrowserWindow, shell, ipcMain, globalShortcut, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -35,16 +35,16 @@ const createWindow = () => {
     return { action: 'deny' };
   });
 
-  ipcMain.on('download-video', (event, { url, filename }) => {
-    downloadMap.set(url, filename);
+  ipcMain.on('download-video', (event, { url, filename, path }) => {
+    downloadMap.set(url, { filename, path });
     mainWindow.webContents.downloadURL(url);
   });
 
   mainWindow.webContents.session.on('will-download', (e, item) => {
     const url = item.getURL();
-    const filename = downloadMap.get(url);
-    if (filename) {
-      const savePath = path.join(app.getPath('downloads'), filename);
+    const data = downloadMap.get(url);
+    if (data) {
+      const savePath = path.join(data.path || app.getPath('downloads'), data.filename);
       item.setSavePath(savePath);
       downloadMap.delete(url);
     }
@@ -123,6 +123,16 @@ const createWindow = () => {
       console.error('保存队列失败:', e);
       return { ok: false, error: String(e) };
     }
+  });
+
+  ipcMain.handle('select-download-folder', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory']
+    });
+    if (!result.canceled) {
+      return result.filePaths[0];
+    }
+    return null;
   });
 
   // Register global shortcuts
