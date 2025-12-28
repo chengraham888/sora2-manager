@@ -7,6 +7,7 @@ const PROJECTS_FILE = path.join(app.getPath('userData'), 'sora2-projects.json');
 const QUEUE_FILE = path.join(app.getPath('userData'), 'sora2-queue.json');
 
 let mainWindow;
+const downloadMap = new Map();
 
 const createWindow = () => {
   mainWindow = new BrowserWindow({
@@ -34,11 +35,18 @@ const createWindow = () => {
   });
 
   ipcMain.on('download-video', (event, { url, filename }) => {
-    const savePath = path.join(app.getPath('downloads'), filename);
+    downloadMap.set(url, filename);
     mainWindow.webContents.downloadURL(url);
-    mainWindow.webContents.session.once('will-download', (e, item) => {
+  });
+
+  mainWindow.webContents.session.on('will-download', (e, item) => {
+    const url = item.getURL();
+    const filename = downloadMap.get(url);
+    if (filename) {
+      const savePath = path.join(app.getPath('downloads'), filename);
       item.setSavePath(savePath);
-    });
+      downloadMap.delete(url);
+    }
   });
 
   // IPC handlers for settings persistence
