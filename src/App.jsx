@@ -1220,6 +1220,29 @@ const StatusBadge = ({ status, stage, progress, warning, taskId, onRetry, onDele
         );
     } else {
         text = status === 'PENDING' ? '等待中' : status;
+        
+        // 为等待中的任务添加删除按钮
+        if (status === 'PENDING') {
+            return (
+                <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wide border ${styles}`}>{String(text)}</span>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteClick();
+                        }}
+                        className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wide border transition-colors ${
+                            confirmDelete
+                                ? 'border-orange-400 bg-orange-100 text-orange-700'
+                                : 'border-red-300 bg-red-50 text-red-600 hover:bg-red-100'
+                        }`}
+                        title={confirmDelete ? '再次点击以确认删除' : '点击删除任务'}
+                    >
+                        {confirmDelete ? '确认删除' : '删除'}
+                    </button>
+                </div>
+            );
+        }
     }
 
     return <span className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wide border ${styles}`}>{String(text)}</span>;
