@@ -703,7 +703,15 @@ export default function App() {
                       try {
                           const jsonStr = trimmed.replace('data: ', '');
                           const data = JSON.parse(jsonStr);
-                          if (data.error) throw new Error(data.error.message || "API Error");
+                          if (data.error) {
+                              // 检查是否是heavy load错误
+                              const errorMessage = data.error.message || "";
+                              if (errorMessage.includes("heavy load") || errorMessage.includes("heavy_load") || 
+                                  (errorMessage.includes("We're under heavy load") || errorMessage.includes("please try again later"))) {
+                                  throw new Error("系统负载过高，请稍后再试");
+                              }
+                              throw new Error(errorMessage || "API Error");
+                          }
                           const delta = data.choices?.[0]?.delta;
                           const combinedChunk = (delta?.content || "") + (delta?.reasoning_content || "");
                           
@@ -757,6 +765,11 @@ export default function App() {
                                   }
                               }
 
+                              // 8. 系统负载过高检测
+                              if (accumulatedContent.includes("heavy load")) {
+                                  throw new Error("系统负载过高，请稍后再试");
+                              }
+
                               updateTask(taskId, updates);
 
                               // 在流处理过程中尝试提取 URL
@@ -774,7 +787,7 @@ export default function App() {
                               }
                           }
                       } catch (e) {
-                          if (e.message.includes("内容违规") || e.message.includes("超时")) throw e;
+                          if (e.message.includes("内容违规") || e.message.includes("超时") || e.message.includes("系统负载过高")) throw e;
                       }
                   }
               }
@@ -784,6 +797,7 @@ export default function App() {
           let finalStage = '错误';
           if (err.message.includes("违规")) finalStage = '内容违规';
           if (err.message.includes("超时")) finalStage = '超时';
+          if (err.message.includes("系统负载过高")) finalStage = '负载过高';
           updateTask(taskId, { status: 'FAILED', stage: finalStage, progress: 0, errorMessage: err.message });
       }
   };
@@ -1184,6 +1198,9 @@ const StatusBadge = ({ status, stage, progress, warning, taskId, onRetry, onDele
         } else if (stage === '超时') {
             styles = "bg-slate-50 text-slate-600 border-slate-200";
             text = "超时";
+        } else if (stage === '负载过高') {
+            styles = "bg-yellow-50 text-yellow-600 border-yellow-200";
+            text = "负载过高";
         } else {
             styles = "bg-red-50 text-red-600 border-red-200";
             text = "失败";
