@@ -703,15 +703,7 @@ export default function App() {
                       try {
                           const jsonStr = trimmed.replace('data: ', '');
                           const data = JSON.parse(jsonStr);
-                          if (data.error) {
-                              // 检查是否是heavy load错误
-                              const errorMessage = data.error.message || "";
-                              if (errorMessage.includes("heavy load") || errorMessage.includes("heavy_load") || 
-                                  (errorMessage.includes("We're under heavy load") || errorMessage.includes("please try again later"))) {
-                                  throw new Error("系统负载过高，请稍后再试");
-                              }
-                              throw new Error(errorMessage || "API Error");
-                          }
+                          if (data.error) throw new Error(data.error.message || "API Error");
                           const delta = data.choices?.[0]?.delta;
                           const combinedChunk = (delta?.content || "") + (delta?.reasoning_content || "");
                           
