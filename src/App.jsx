@@ -609,7 +609,8 @@ export default function App() {
           timestamp: new Date().toLocaleString(),
           modelUsed: modelName,
           image: activeProject.image,
-          generationType: generationType, 
+          generationType: generationType,
+          retryCount: 0,
       };
       setQueue(prev => [newTask, ...prev]);
   };
@@ -797,7 +798,20 @@ export default function App() {
           let finalStage = '错误';
           if (err.message.includes("违规")) finalStage = '内容违规';
           if (err.message.includes("超时")) finalStage = '超时';
-          if (err.message.includes("系统负载过高")) finalStage = '负载过高';
+          if (err.message.includes("系统负载过高")) {
+              finalStage = '负载过高';
+              // 检查重试次数
+              const task = queue.find(t => t.id === taskId);
+              if (task && task.retryCount < 3) {
+                  addLog(`[任务 ${taskId}] 负载过高，将在3秒后重试 (${task.retryCount + 1}/3)`, 'warning');
+                  setTimeout(() => {
+                      updateTask(taskId, { status: 'PENDING', stage: `重试中 (${task.retryCount + 1}/3)`, progress: 0, errorMessage: null, streamLog: '', retryCount: task.retryCount + 1 });
+                  }, 3000);
+                  return; // 不更新为FAILED，等待重试
+              } else {
+                  addLog(`[任务 ${taskId}] 负载过高，重试次数已达上限`, 'error');
+              }
+          }
           updateTask(taskId, { status: 'FAILED', stage: finalStage, progress: 0, errorMessage: err.message });
       }
   };
@@ -989,7 +1003,7 @@ export default function App() {
                                                 onClick={() => { if (task.status === 'FAILED' && task.errorMessage) handleCopy(task.errorMessage); }}
                                                 style={{ cursor: 'help' }}
                                             >
-                                                <StatusBadge status={task.status} stage={task.stage} progress={task.progress} warning={task.warning} taskId={task.id} onRetry={retryTask} onDelete={deleteTask} videoUrl={task.videoUrl} onPreview={() => setPreviewVideo(task.videoUrl)} />
+                                                <StatusBadge status={task.status} stage={task.stage} progress={task.progress} warning={task.warning} taskId={task.id} onRetry={retryTask} onDelete={deleteTask} videoUrl={task.videoUrl} onPreview={() => setPreviewVideo(task.videoUrl)} retryCount={task.retryCount} />
                                             </td>
                                         </tr>
                                     ))}
@@ -1121,7 +1135,7 @@ export default function App() {
   );
 }
 
-const StatusBadge = ({ status, stage, progress, warning, taskId, onRetry, onDelete, videoUrl, onPreview }) => {
+const StatusBadge = ({ status, stage, progress, warning, taskId, onRetry, onDelete, videoUrl, onPreview, retryCount }) => {
     const [confirmDelete, setConfirmDelete] = useState(false);
     let styles = "bg-gray-100 text-gray-500 border-gray-200";
     let text = status;
@@ -1200,7 +1214,7 @@ const StatusBadge = ({ status, stage, progress, warning, taskId, onRetry, onDele
             text = "超时";
         } else if (stage === '负载过高') {
             styles = "bg-yellow-50 text-yellow-600 border-yellow-200";
-            text = "负载过高";
+            text = `负载过高 (已重试 ${retryCount || 0} 次)`;
         } else {
             styles = "bg-red-50 text-red-600 border-red-200";
             text = "失败";
@@ -1236,7 +1250,7 @@ const StatusBadge = ({ status, stage, progress, warning, taskId, onRetry, onDele
             </div>
         );
     } else {
-        text = status === 'PENDING' ? '等待中' : status;
+        text = status === 'PENDING' ? (retryCount > 0 ? `重试中 (${retryCount}/3)` : '等待中') : status;
         
         // 为等待中的任务添加删除按钮
         if (status === 'PENDING') {
